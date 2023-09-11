@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <script type=module>
+      import { AMQPWebSocketClient } from './amqp-websocket-client.mjs'
+      const input = document.getElementById("input")
+      const tls = window.location.protocol === "https:"
+      const url = `${tls ? "wss" : "ws"}://${window.location.host}`
+      const amqp = new AMQPWebSocketClient("ws://localhost:15670/ws", "/", "guest", "guest")
+
+      async function start() {
+        try {
+          const conn = await amqp.connect()
+          const ch = await conn.channel()
+          const q = await ch.queue("logEvents")
+          await q.bind("amq.fanout")
+          const consumer = await q.subscribe({noAck: false}, (msg) => {
+            console.log(msg.bodyToString())
+            input.append(msg.bodyToString() + "\n")
+          })
+        } catch (err) {
+          console.error("Error", err, "reconnecting in 1s")
+          setTimeout(start, 1000)
+        }
+      }
+      start()
+    </script>
+  </head>
+  <body>
+    <div id="input"></div>
+  </body>
+</html>
